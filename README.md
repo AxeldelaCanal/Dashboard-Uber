@@ -1,16 +1,46 @@
-# React + Vite
+# Dashboard Uber
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Dashboard Uber es una aplicación React + Vite para gestionar ingresos, cargas de combustible y gastos de una unidad de transporte.
 
-Currently, two official plugins are available:
+Características principales:
+- Registro de ingresos diarios, horas y viajes
+- Registro de cargas de combustible y gastos varios
+- Cálculo de ganancias netas y métricas (ganancia/hora, ticket promedio, ROI)
+- Tema claro/oscuro con persistencia en localStorage
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Requisitos
+- Node.js 18+ y npm
 
-## React Compiler
+Instalación y ejecución local
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Instalar dependencias
 
-## Expanding the ESLint configuration
+```bash
+npm ci
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+2. Ejecutar en modo desarrollo
+
+```bash
+npm run dev
+```
+
+3. Crear build de producción
+
+```bash
+npm run build
+```
+
+Notas útiles
+- Si el toggle de tema no refleja el modo claro/oscuro localmente, abre la consola del navegador y ejecuta `localStorage.removeItem('uber_theme')` y refresca la página.
+- El proyecto utiliza Tailwind CSS con `darkMode: 'class'`.
+
+Despliegue (GitHub Pages)
+
+Se añadió un workflow de GitHub Actions que construye el proyecto y despliega la carpeta `dist/` a la rama `gh-pages` para servir mediante GitHub Pages. El flujo se ejecuta automáticamente al hacer push en `main`.
+
+Si querés desactivar el despliegue automático, borrá `.github/workflows/deploy.yml` o deshabilitá el workflow en la configuración del repo.
+
+Licencia
+Este repositorio es personal.
+
