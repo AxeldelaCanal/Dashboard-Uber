@@ -1,21 +1,33 @@
 import { useState } from 'react';
-import { Wallet, Plus, Calendar, Clock, Route, Edit2, Trash2, Check, X, DollarSign } from 'lucide-react';
+import { Wallet, Plus, Calendar, Clock, Route, Edit2, Trash2, Check, X, DollarSign, Timer } from 'lucide-react';
 import { formatCurrency, inputCls, inlineCls } from '../utils/formatters';
 import { fmtDate } from '../utils/dateUtils';
 
 export default function EarningsCard({ earnings, filteredEarnings, onAdd, onDelete, onUpdate }) {
   const today = new Date().toISOString().split('T')[0];
-  const [date, setDate] = useState(today);
-  const [amount, setAmount] = useState('');
-  const [hours, setHours] = useState('');
-  const [trips, setTrips] = useState('');
-  const [editing, setEditing] = useState(null);
+  const [date, setDate]         = useState(today);
+  const [amount, setAmount]     = useState('');
+  const [hours, setHours]       = useState('');
+  const [trips, setTrips]       = useState('');
+  const [shiftMode, setShiftMode] = useState(false);
+  const [start, setStart]       = useState('');
+  const [end, setEnd]           = useState('');
+  const [editing, setEditing]   = useState(null);
+
+  const calcHours = () => {
+    if (!start || !end) return +hours || 0;
+    const [sh, sm] = start.split(':').map(Number);
+    const [eh, em] = end.split(':').map(Number);
+    let diff = (eh * 60 + em) - (sh * 60 + sm);
+    if (diff < 0) diff += 1440;
+    return +(diff / 60).toFixed(1);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!date || !amount) return;
-    onAdd({ id: crypto.randomUUID(), date, amount: +amount, hours: +hours || 0, trips: +trips || 0 });
-    setAmount(''); setHours(''); setTrips('');
+    onAdd({ id: crypto.randomUUID(), date, amount: +amount, hours: calcHours(), trips: +trips || 0 });
+    setAmount(''); setHours(''); setTrips(''); setStart(''); setEnd('');
   };
 
   const handleSave = () => {
@@ -26,9 +38,15 @@ export default function EarningsCard({ earnings, filteredEarnings, onAdd, onDele
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-6 transition-colors">
-      <div className="flex items-center gap-2 mb-6">
-        <Wallet className="text-emerald-500 dark:text-emerald-400" />
-        <h2 className="text-xl font-bold dark:text-white">Ingresos por Día</h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <Wallet className="text-emerald-500 dark:text-emerald-400" />
+          <h2 className="text-xl font-bold dark:text-white">Ingresos por Día</h2>
+        </div>
+        <button onClick={() => setShiftMode(s => !s)}
+          className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors ${shiftMode ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+          <Timer size={13} /> Modo turno
+        </button>
       </div>
       <form onSubmit={handleSubmit} className="mb-6">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -37,17 +55,33 @@ export default function EarningsCard({ earnings, filteredEarnings, onAdd, onDele
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
             <input type="number" placeholder="Ganancia ($)" value={amount} onChange={e => setAmount(e.target.value)} className={`${inputCls} pl-9`} required />
           </div>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Clock size={16} className="text-slate-400" /></div>
-            <input type="number" step="0.5" placeholder="Horas" value={hours} onChange={e => setHours(e.target.value)} className={`${inputCls} pl-9`} />
-          </div>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Route size={16} className="text-slate-400" /></div>
-            <input type="number" placeholder="Viajes" value={trips} onChange={e => setTrips(e.target.value)} className={`${inputCls} pl-9`} />
-          </div>
+          {shiftMode ? (
+            <>
+              <input type="time" value={start} onChange={e => setStart(e.target.value)} className={inputCls} placeholder="Inicio" />
+              <input type="time" value={end}   onChange={e => setEnd(e.target.value)}   className={inputCls} placeholder="Fin" />
+            </>
+          ) : (
+            <>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Clock size={16} className="text-slate-400" /></div>
+                <input type="number" step="0.5" placeholder="Horas" value={hours} onChange={e => setHours(e.target.value)} className={`${inputCls} pl-9`} />
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Route size={16} className="text-slate-400" /></div>
+                <input type="number" placeholder="Viajes" value={trips} onChange={e => setTrips(e.target.value)} className={`${inputCls} pl-9`} />
+              </div>
+            </>
+          )}
         </div>
+        {shiftMode && (
+          <div className="mt-3 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Route size={16} className="text-slate-400" /></div>
+            <input type="number" placeholder="Viajes" value={trips} onChange={e => setTrips(e.target.value)} className={`${inputCls} pl-9 w-full md:w-1/5`} />
+          </div>
+        )}
         <button type="submit" className="mt-3 w-full bg-black dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
           <Plus size={18} /> Agregar Ingreso
+          {shiftMode && start && end && <span className="text-xs opacity-70">· {calcHours()}h calculadas</span>}
         </button>
       </form>
       <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">

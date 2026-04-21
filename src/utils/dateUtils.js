@@ -2,6 +2,7 @@ export function filterByPeriod(data, period) {
   if (period === 'all') return data;
   const today = new Date();
   const month = today.getMonth(), year = today.getFullYear();
+  if (period === 'year') return data.filter(e => new Date(e.date + 'T12:00:00').getFullYear() === year);
   const curr = new Date(today);
   const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1);
   const weekStart = new Date(curr.setDate(first)).setHours(0, 0, 0, 0);
@@ -14,11 +15,11 @@ export function filterByPeriod(data, period) {
 }
 
 export function getPreviousPeriodData(data, period) {
-  if (period === 'all') return [];
+  if (period === 'all' || period === 'year') return [];
   const today = new Date();
   if (period === 'month') {
     const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-    const prevYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+    const prevYear  = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
     return data.filter(e => {
       const d = new Date(e.date + 'T12:00:00');
       return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
@@ -26,9 +27,9 @@ export function getPreviousPeriodData(data, period) {
   }
   const curr = new Date(today);
   const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1);
-  const weekStart = new Date(today.getFullYear(), today.getMonth(), first);
+  const weekStart    = new Date(today.getFullYear(), today.getMonth(), first);
   const prevWeekStart = new Date(weekStart.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const prevWeekEnd = new Date(weekStart.getTime() - 1);
+  const prevWeekEnd   = new Date(weekStart.getTime() - 1);
   return data.filter(e => {
     const d = new Date(e.date + 'T12:00:00');
     return d >= prevWeekStart && d <= prevWeekEnd;
