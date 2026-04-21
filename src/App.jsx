@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useCalculations } from './hooks/useCalculations';
-import { filterByPeriod } from './utils/dateUtils';
+import { useToast } from './hooks/useToast';
+import { filterByPeriod, getPreviousPeriodData } from './utils/dateUtils';
+import { exportCSV } from './utils/exportCSV';
 import Header from './components/Header';
 import TripCalculator from './components/TripCalculator';
 import EarningsCard from './components/EarningsCard';
@@ -9,6 +11,7 @@ import FuelCard from './components/FuelCard';
 import ExpenseCard from './components/ExpenseCard';
 import BarChart from './components/BarChart';
 import FinancialSummary from './components/FinancialSummary';
+import ToastContainer from './components/Toast';
 
 const INITIAL_EARNINGS = [
   { id: '1', date: '2026-03-10', amount: 49000, hours: 8,  trips: 15 },
@@ -27,14 +30,24 @@ export default function App() {
   const [expenses,     setExpenses]     = useLocalStorage('uber_expenses',      []);
   const [filterPeriod, setFilterPeriod] = useLocalStorage('uber_filterPeriod', 'all');
   const [profitMode,   setProfitMode]   = useLocalStorage('uber_profitMode',   'trip');
+  const [weeklyGoal,   setWeeklyGoal]   = useLocalStorage('uber_weeklyGoal',   0);
+  const { toasts, toast } = useToast();
 
   const sorted = (arr) => [...arr].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const filteredEarnings = useMemo(() => filterByPeriod(earnings,  filterPeriod), [earnings,  filterPeriod]);
-  const filteredFuelLogs = useMemo(() => filterByPeriod(fuelLogs,  filterPeriod), [fuelLogs,  filterPeriod]);
-  const filteredExpenses = useMemo(() => filterByPeriod(expenses,  filterPeriod), [expenses,  filterPeriod]);
+  const filteredEarnings     = useMemo(() => filterByPeriod(earnings,  filterPeriod), [earnings,  filterPeriod]);
+  const filteredFuelLogs     = useMemo(() => filterByPeriod(fuelLogs,  filterPeriod), [fuelLogs,  filterPeriod]);
+  const filteredExpenses     = useMemo(() => filterByPeriod(expenses,  filterPeriod), [expenses,  filterPeriod]);
+  const prevFilteredEarnings = useMemo(() => getPreviousPeriodData(earnings,  filterPeriod), [earnings,  filterPeriod]);
+  const prevFilteredFuelLogs = useMemo(() => getPreviousPeriodData(fuelLogs,  filterPeriod), [fuelLogs,  filterPeriod]);
+  const prevFilteredExpenses = useMemo(() => getPreviousPeriodData(expenses,  filterPeriod), [expenses,  filterPeriod]);
 
-  const calculations = useCalculations({ tankCost, tankAutonomy, tripKm, filteredEarnings, filteredFuelLogs, filteredExpenses, profitMode });
+  const calculations = useCalculations({
+    tankCost, tankAutonomy, tripKm,
+    filteredEarnings, filteredFuelLogs, filteredExpenses,
+    prevFilteredEarnings, prevFilteredFuelLogs, prevFilteredExpenses,
+    profitMode,
+  });
 
   const chartData = useMemo(() => {
     const days = [];
@@ -44,21 +57,26 @@ export default function App() {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       const amount = earnings.filter(e => e.date === dateStr).reduce((s, e) => s + +e.amount, 0);
+      const cost   = [...fuelLogs, ...expenses].filter(e => e.date === dateStr).reduce((s, e) => s + +e.amount, 0);
       if (amount > maxAmount) maxAmount = amount;
-      days.push({ label: d.toLocaleDateString('es-AR', { weekday: 'short' }), amount });
+      days.push({ label: d.toLocaleDateString('es-AR', { weekday: 'short' }), amount, cost });
     }
     return { days, maxAmount: maxAmount > 0 ? maxAmount : 1000 };
-  }, [earnings]);
+  }, [earnings, fuelLogs, expenses]);
 
-  const addSorted    = (setter, arr, entry) => setter(sorted([...arr, entry]));
-  const deleteFn     = (setter, arr, id)    => setter(arr.filter(e => e.id !== id));
-  const updateFn     = (setter, arr, entry) => setter(sorted(arr.map(e => e.id === entry.id ? entry : e)));
+  const addSorted = (setter, arr, entry) => setter(sorted([...arr, entry]));
+  const deleteFn  = (setter, arr, id)    => setter(arr.filter(e => e.id !== id));
+  const updateFn  = (setter, arr, entry) => setter(sorted(arr.map(e => e.id === entry.id ? entry : e)));
 
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans p-4 md:p-8 transition-colors duration-200">
         <div className="max-w-7xl mx-auto space-y-6">
-          <Header isDarkMode={isDarkMode} onToggleDark={() => setIsDarkMode(!isDarkMode)} filterPeriod={filterPeriod} onFilterChange={setFilterPeriod} />
+          <Header
+            isDarkMode={isDarkMode} onToggleDark={() => setIsDarkMode(!isDarkMode)}
+            filterPeriod={filterPeriod} onFilterChange={setFilterPeriod}
+            onExport={() => { exportCSV(earnings, fuelLogs, expenses); toast('CSV exportado ✓'); }}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-7 space-y-6">
               <TripCalculator
@@ -69,21 +87,21 @@ export default function App() {
               />
               <EarningsCard
                 earnings={earnings} filteredEarnings={filteredEarnings}
-                onAdd={e => addSorted(setEarnings, earnings, e)}
-                onDelete={id => deleteFn(setEarnings, earnings, id)}
-                onUpdate={e => updateFn(setEarnings, earnings, e)}
+                onAdd={e    => { addSorted(setEarnings, earnings, e);     toast('Ingreso agregado ✓'); }}
+                onDelete={id => { deleteFn(setEarnings, earnings, id);    toast('Ingreso eliminado', 'info'); }}
+                onUpdate={e  => { updateFn(setEarnings, earnings, e);     toast('Ingreso actualizado ✓'); }}
               />
               <FuelCard
                 fuelLogs={fuelLogs} filteredFuelLogs={filteredFuelLogs}
-                onAdd={e => addSorted(setFuelLogs, fuelLogs, e)}
-                onDelete={id => deleteFn(setFuelLogs, fuelLogs, id)}
-                onUpdate={e => updateFn(setFuelLogs, fuelLogs, e)}
+                onAdd={e    => { addSorted(setFuelLogs, fuelLogs, e);     toast('Carga registrada ✓'); }}
+                onDelete={id => { deleteFn(setFuelLogs, fuelLogs, id);    toast('Carga eliminada', 'info'); }}
+                onUpdate={e  => { updateFn(setFuelLogs, fuelLogs, e);     toast('Carga actualizada ✓'); }}
               />
               <ExpenseCard
                 expenses={expenses} filteredExpenses={filteredExpenses}
-                onAdd={e => addSorted(setExpenses, expenses, e)}
-                onDelete={id => deleteFn(setExpenses, expenses, id)}
-                onUpdate={e => updateFn(setExpenses, expenses, e)}
+                onAdd={e    => { addSorted(setExpenses, expenses, e);     toast('Gasto registrado ✓'); }}
+                onDelete={id => { deleteFn(setExpenses, expenses, id);    toast('Gasto eliminado', 'info'); }}
+                onUpdate={e  => { updateFn(setExpenses, expenses, e);     toast('Gasto actualizado ✓'); }}
               />
             </div>
             <div className="lg:col-span-5 space-y-6">
@@ -92,11 +110,13 @@ export default function App() {
                 calculations={calculations} filterPeriod={filterPeriod}
                 profitMode={profitMode} onProfitMode={setProfitMode}
                 tripKm={tripKm} filteredFuelLogs={filteredFuelLogs}
+                weeklyGoal={weeklyGoal} onWeeklyGoal={setWeeklyGoal}
               />
             </div>
           </div>
         </div>
       </div>
+      <ToastContainer toasts={toasts} />
     </div>
   );
 }
