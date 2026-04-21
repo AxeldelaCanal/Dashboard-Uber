@@ -1,0 +1,1 @@
+{"name":"Dashboard Uber","short_name":"Uber Dash","description":"Gestión financiera para conductores de Uber","start_url":"/","display":"standalone","background_color":"#f8fafc","theme_color":"#000000","lang":"en","scope":"/","icons":[{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml"}]}
